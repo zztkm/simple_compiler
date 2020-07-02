@@ -1,112 +1,158 @@
+#include <ctype.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
 
-// トークンの型を表す値
-// NUM->整数トークン, EOF->入力の終わりを表すトークン
-enum {
-    TK_NUM = 256,
-    TK_EOF,
+// トークンの種類
+typedef enum
+{
+    TK_RESERVED, // 記号
+    TK_NUM,      // 整数トークン
+    TK_EOF,      // 入力の終わりを表すトークン
+} TokenKind;
+
+typedef struct Token Token;
+
+// トークン型
+struct Token
+{
+    TokenKind kind; // トークンの型
+    Token *next;    // 次の入力トークン
+    int val;        // kindがTK_NUMの場合、その数値
+    char *str;      // トークン文字列
 };
 
-// トークンの型
-typedef struct {
-    int ty;         // トークンの型
-    int val;        // tyがTK_NUMの場合，その数値
-    char *input;    // トークン文字列(エラーメッセージ用)
-} Token;
+// 現在着目しているトークン
+Token *token;
 
-// トークナイズした結果のトークン文字列はこの配列に保存
-// 100個以上のトークンはこないものとする
-Token tokens[100];
-
-// pが指している文字列をトークンに分割してtokensに保存する
-void tokenize(char *p) {
-    int i = 0;
-    while (*p) {
-        // 空白文字をスキップ
-        if  (isspace(*p)) {
-            p++;
-            continue;
-        }
-
-        if (*p == '+' || *p == '-') {
-            tokens[i].ty = *p;
-            tokens[i].input = p;
-            i++;
-            p++;
-            continue;
-        }
-
-        if (isdigit(*p)) {
-            tokens[i].ty = TK_NUM;
-            tokens[i].input = p;
-            tokens[i].val = strtol(p, &p, 10);
-            i++;
-            continue;
-        }
-
-        fprintf(stderr, "トークナイズできません: %s\n", p);
-        exit(1);
-    }
-
-    tokens[i].ty = TK_EOF;
-    tokens[i].input = p;
-}
-
-// エラー報告関数
-void error(int i) {
-    fprintf(stderr, "予期しないトークンです: %s\n",
-            tokens[i].input);
+// エラーを報告するための関数
+// printfと同じ引数を取る
+void error(char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
     exit(1);
 }
 
-int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "引数の個数が正しくありません.\n");
+// 次のトークンが期待している記号のときには、トークンを1つ読み進めて
+// 真を返す。それ以外の場合には偽を返す。
+bool consume(char op)
+{
+    if (token->kind != TK_RESERVED || token->str[0] != op)
+        return false;
+    token = token->next;
+    return true;
+}
+
+// 次のトークンが期待している記号のときには、トークンを1つ読み進める。
+// それ以外の場合にはエラーを報告する。
+void expect(char op)
+{
+    if (token->kind != TK_RESERVED || token->str[0] != op)
+        error("'%c'ではありません", op);
+    token = token->next;
+}
+
+// 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
+// それ以外の場合にはエラーを報告する。
+int expect_number()
+{
+    if (token->kind != TK_NUM)
+        error("数ではありません");
+    int val = token->val;
+    token = token->next;
+    return val;
+}
+
+bool at_eof()
+{
+    return token->kind == TK_EOF;
+}
+
+// 新しいトークンを作成してcurに繋げる
+Token *new_token(TokenKind kind, Token *cur, char *str)
+{
+    Token *tok = calloc(1, sizeof(Token));
+    tok->kind = kind;
+    tok->str = str;
+    cur->next = tok;
+    return tok;
+}
+
+// 入力文字列pをトークナイズしてそれを返す
+Token *tokenize(char *p)
+{
+    Token head;
+    head.next = NULL;
+    Token *cur = &head;
+
+    while (*p)
+    {
+        // 空白文字をスキップ
+        if (isspace(*p))
+        {
+            p++;
+            continue;
+        }
+
+        if (*p == '+' || *p == '-')
+        {
+            cur = new_token(TK_RESERVED, cur, p++);
+            continue;
+        }
+
+        if (isdigit(*p))
+        {
+            cur = new_token(TK_NUM, cur, p);
+            cur->val = strtol(p, &p, 10);
+            continue;
+        }
+
+        error("トークナイズできません");
+    }
+
+    new_token(TK_EOF, cur, p);
+    return head.next;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 2)
+    {
+        error("引数の個数が正しくありません");
         return 1;
     }
 
     // トークナイズする
-    tokenize(argv[1]);
+    token = tokenize(argv[1]);
 
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
+    printf(".globl main\n");
     printf("main:\n");
 
-    // 式の最初は数でなければいけないので，それをチェック
+    // 式の最初は数でなければならないので、それをチェックして
     // 最初のmov命令を出力
-    if (tokens[0].ty != TK_NUM)
-        error(0);
-    printf("    mov rax, %d\n", tokens[0].val);
+    printf("  mov rax, %d\n", expect_number());
 
     // `+ <数>`あるいは`- <数>`というトークンの並びを消費しつつ
     // アセンブリを出力
-    int i = 1;
-    while (tokens[i].ty != TK_EOF) {
-        if (tokens[i].ty == '+') {
-            i++;
-            if (tokens[i].ty != TK_NUM)
-                error(i);
-            printf("    add rax, %d\n", tokens[i].val);
-            i++;
+    while (!at_eof())
+    {
+        if (consume('+'))
+        {
+            printf("  add rax, %d\n", expect_number());
             continue;
         }
 
-        if (tokens[i].ty == '-') {
-            i++;
-            if (tokens[i].ty != TK_NUM)
-                error(i);
-            printf("    sub rax, %d\n", tokens[i].val);
-            i++;
-            continue;
-        }
-
-        error(i);
+        expect('-');
+        printf("  sub rax, %d\n", expect_number());
     }
 
-    printf("    ret\n");
+    printf("  ret\n");
     return 0;
 }
