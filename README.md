@@ -1,5 +1,5 @@
 # 自作Cコンパイラー
-あくまで学習用
+おれのCコンパイラ
 
 Special thanks https://www.sigbus.info/compilerbook/
 
