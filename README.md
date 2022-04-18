@@ -1,20 +1,23 @@
-# 自作Cコンパイラー
-おれのCコンパイラ
+# tkmcc
 
-Special thanks https://www.sigbus.info/compilerbook/
+Refs: https://www.sigbus.info/compilerbook/
 
 
-ビルド方法:
-```
-$ make
-```
+## Setup
 
-テストするとき(テストコードをtest.shに追記してね):
-```
-$ make test
+Docker イメージのビルド
+```shell
+docker build -t compilerbook .
 ```
 
-テンポラリファイルを消すとき:
+## Developmet
+
+test(テストコードは test.sh によろしゃす)
+```shell
+docker run --rm -v $PWD:/tkmcc -w /tkmcc compilerbook make test
 ```
-$ make clean
+
+インタラクティブに使う場合
+```shell
+docker run --rm -it -v $PWD:/tkmcc -w /tkmcc compilerbook
 ```

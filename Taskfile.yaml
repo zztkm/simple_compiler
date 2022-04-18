@@ -1,0 +1,14 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  test:
+    desc: Run test
+    cmds:
+      - docker run --rm -v $PWD:/tkmcc -w /tkmcc compilerbook make test
+
+  interactive:
+    desc: Using docker container interactively
+    cmds:
+      - docker run --rm -it -v $PWD:/tkmcc -w /tkmcc compilerbook
