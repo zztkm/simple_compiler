@@ -3,6 +3,11 @@
 version: '3'
 
 tasks:
+  setup:
+    desc: Build docker image
+    cmds:
+      - docker build -t compilerbook .
+
   test:
     desc: Run test
     cmds:
