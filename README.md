@@ -3,7 +3,7 @@
 Refs: https://www.sigbus.info/compilerbook/
 
 
-## Setup
+## Setu
 
 Docker イメージのビルド
 ```shell
@@ -21,3 +21,7 @@ docker run --rm -v $PWD:/tkmcc -w /tkmcc compilerbook make test
 ```shell
 docker run --rm -it -v $PWD:/tkmcc -w /tkmcc compilerbook
 ```
+
+## その他
+
+コマンドはTaskfile.ymlにまとめられています
